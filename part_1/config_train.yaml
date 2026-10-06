@@ -1,0 +1,62 @@
+# =============================================================================
+# config_train.yaml — Training configuration for model-size experiment
+# Loaded by src/train.py
+# =============================================================================
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+model:
+  arch: "resnet50"           # Base architecture (must be in _RESNET_CONFIGS)
+  num_classes: 10            # CIFAR-10
+  scales: [0.5, 0.75, 1.0, 1.5, 2.0]    # Width multipliers to train
+
+# ── Dataset ───────────────────────────────────────────────────────────────────
+data:
+  root: "./data"             # CIFAR-10 root (must already be downloaded)
+  num_workers: 4
+  pin_memory: true
+  train_split: 0.9           # Fraction of training data used for training
+                             # (remaining 10 % used as validation set)
+
+# ── Training ──────────────────────────────────────────────────────────────────
+train:
+  epochs: 50
+  batch_size: 4
+  # Optimizer
+  optimizer: "sgd"           # "sgd" | "adam" | "adamw"
+  lr: 0.1
+  momentum: 0.9              # used only when optimizer = sgd
+  weight_decay: 5.0e-4
+  nesterov: true             # used only when optimizer = sgd
+  # LR Scheduler
+  scheduler: "cosine"        # "cosine" | "step" | "none"
+  # cosine: lr decays from `lr` to `lr_min` over `epochs`
+  lr_min: 1.0e-5
+  # step: lr multiplied by `lr_step_gamma` every `lr_step_size` epochs
+  lr_step_size: 20
+  lr_step_gamma: 0.1
+  # Warmup (applied before scheduler kicks in)
+  warmup_epochs: 5
+  warmup_lr_start: 1.0e-3
+
+# ── Input preprocessing ───────────────────────────────────────────────────────
+augmentation:
+  # Training transforms applied on top of the original CIFAR-10 data
+  random_crop: true
+  crop_padding: 4
+  random_horizontal_flip: true
+  normalize: true
+  mean: [0.4914, 0.4822, 0.4465]   # CIFAR-10 channel means
+  std:  [0.2470, 0.2435, 0.2616]   # CIFAR-10 channel stds
+  # Resize to ImageNet resolution so pretrained stem conv dimensions match
+  resize: 224
+
+# ── Output / Checkpointing ────────────────────────────────────────────────────
+output:
+  results_dir: "results/train"     # CSV + plots saved here
+  checkpoint_dir: "checkpoints"    # Best model .pth files saved here
+  save_best_only: true             # Only save checkpoint when val accuracy improves
+  log_interval: 10                 # Print progress every N batches
+
+# ── Hardware ──────────────────────────────────────────────────────────────────
+device: "auto"   # "auto" → cuda if available, else cpu
+seed: 42

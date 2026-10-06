@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# requirements.txt — WTNN Part 1
+# Python 3.14 · CUDA 12.x (use CPU-only torch if no GPU)
+# Install: pip install -r requirements.txt
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Deep Learning Core ────────────────────────────────────────────────────────
+torch
+torchvision
+
+# ── Pretrained Model Hub (CIFAR-10 checkpoints) ───────────────────────────────
+timm
+
+# ── Numerical Computing ───────────────────────────────────────────────────────
+numpy
+
+# ── Data Handling ─────────────────────────────────────────────────────────────
+pandas
+
+# ── Visualization ─────────────────────────────────────────────────────────────
+matplotlib
+seaborn
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+tqdm
+Pillow
+scipy
+# ── Dev / Notebook (optional but recommended) ─────────────────────────────────
+ipykernel
+jupyterlab
