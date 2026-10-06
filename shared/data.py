@@ -37,6 +37,11 @@ MODEL_REPO = "https://github.com/huyvnphan/PyTorch_CIFAR10.git"
 WEIGHTS_GDRIVE_ID = "17fmN8eQdLpq2jIMQ_X0IXDPXfI9oVWgq"     # archive with all huyvnphan checkpoints (~1 GB)
 CIFAR10C_URL = os.environ.get("NNC_CIFAR10C_URL",
                               "https://zenodo.org/records/2535967/files/CIFAR-10-C.tar?download=1")
+# Official archive of Zenodo record 2535967 (same values as the TensorFlow Datasets checksum list).
+CIFAR10C_BYTES = 2918471680
+CIFAR10C_SHA256 = "c72763e101c723b7c507b96205f7e938912a5d587376173b825850cf3cb876a7"
+# huyvnphan/PyTorch_CIFAR10 ResNet-18 used in Parts 2-4.
+RESNET18_SHA256 = "72d30ca70e7d54e24a26628113604c40bc872eb8dc7a44f50ec58c3a1400f1b0"
 
 
 # ----------------------------------------------------------------------------- locations
@@ -97,6 +102,7 @@ def ensure_cifar10c(corruptions=CORRUPTIONS, delete_archive=False):
         archive = folder / "CIFAR-10-C.tar"
         if not _tar_ok(archive):
             _download(CIFAR10C_URL, archive)
+        verify_cifar10c_archive(archive)
         with tarfile.open(archive) as tf:
             for member in tf.getmembers():
                 name = member.name.rsplit("/", 1)[-1]
@@ -111,6 +117,29 @@ def ensure_cifar10c(corruptions=CORRUPTIONS, delete_archive=False):
         if delete_archive:
             archive.unlink()
     return folder
+
+
+def verify_cifar10c_archive(archive):
+    """Check size and SHA-256 of CIFAR-10-C.tar against the official release (once; the result is remembered)."""
+    marker = archive.with_name(archive.name + ".sha256-ok")
+    if marker.exists() or os.environ.get("NNC_SKIP_CHECKSUM"):
+        return
+    if archive.stat().st_size != CIFAR10C_BYTES:
+        raise RuntimeError(f"{archive} has {archive.stat().st_size} bytes, expected {CIFAR10C_BYTES}: "
+                           "incomplete or different download. Delete it and run again.")
+    digest = _sha256(archive)
+    if digest != CIFAR10C_SHA256:
+        raise RuntimeError(f"{archive} SHA-256 {digest} differs from the official {CIFAR10C_SHA256}.")
+    marker.write_text(digest + "\n")
+    print("CIFAR-10-C.tar: size and SHA-256 match the official release.")
+
+
+def _sha256(path, chunk=16 << 20):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(chunk), b""):
+            h.update(block)
+    return h.hexdigest()
 
 
 def cifar10c_images(corruption):
@@ -176,6 +205,8 @@ def resnet18(device="cpu"):
     repo, weight = resnet18_weights()
     commit = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
     sha = hashlib.sha256(weight.read_bytes()).hexdigest()
+    if sha != RESNET18_SHA256:
+        print(f"warning: resnet18.pt SHA-256 {sha} differs from the checkpoint used in the report ({RESNET18_SHA256}).")
     spec = importlib.util.spec_from_file_location("huyvnphan_resnet", repo / "cifar10_models" / "resnet.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

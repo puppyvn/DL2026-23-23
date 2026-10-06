@@ -1,3 +1,8 @@
-results/
-artifacts/
+# Shared downloads: CIFAR-10, CIFAR-10-C, model weights, logits (see DATA.md). Never commit.
+downloads/
+# Timestamped run folders; copy final results into part_3/outputs or part_4/output by hand.
+part_3/results/
+part_4/src/artifacts/
+# Python
 __pycache__/
+*.pyc
