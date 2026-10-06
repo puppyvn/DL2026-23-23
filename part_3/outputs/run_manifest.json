@@ -1,0 +1,43 @@
+{
+  "part": 3,
+  "batch_seed": 42,
+  "bins": 15,
+  "corruptions": [
+    "gaussian_noise",
+    "motion_blur",
+    "brightness",
+    "contrast",
+    "pixelate"
+  ],
+  "severities": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "provenance": {
+    "checkpoint": "72d30ca70e7d54e24a26628113604c40bc872eb8dc7a44f50ec58c3a1400f1b0",
+    "commit": "641cac24371b17052b9bb6e56af1c83b5e97cd7f",
+    "mean": [
+      0.4914,
+      0.4822,
+      0.4465
+    ],
+    "std": [
+      0.2471,
+      0.2435,
+      0.2616
+    ]
+  },
+  "versions": {
+    "numpy": "2.1.3",
+    "scipy": "1.16.3",
+    "pandas": "2.2.3",
+    "matplotlib": "3.10.0",
+    "scikit-learn": "1.6.1"
+  },
+  "source_run": "all_seed42_20261006T195259727606Z (Colab, official CIFAR-10-C)",
+  "note": "Produced by the identical Part 3 code path in part_4/src/experiments.py; run_part3.py reproduces these files exactly from the same logit cache.",
+  "aggregation": "Per-corruption metrics on all 10K images; trends pool the five corruptions per severity."
+}
