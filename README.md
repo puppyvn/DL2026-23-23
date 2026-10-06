@@ -9,8 +9,8 @@ results come from the scripts in this repository.
 |---|---|---|---|
 | 1 | Why not trust raw confidence? Width, depth, architecture, distribution shift | `part_1/`, `part_2/experiments/depth_architecture.py` | Experiments 1, 3, 4 |
 | 2 | How do we check confidence? Controlled temperature stress test (T = 0.5 / 1 / 2) | `part_2/` | Experiment 2 |
-| 3 | Can we trust the model forever? Raw confidence under CIFAR-10-C shift | `part_3/` | Experiment 5 |
-| 4 | What to do after miscalibration? Temperature Scaling and Dirichlet, clean and under shift | `part_4/` | Experiment 6 |
+| 3 | Can we trust the model forever? Raw confidence under CIFAR-10-C shift | `part_3/` | Experiment 6 (raw confidence) |
+| 4 | What to do after miscalibration? Temperature Scaling and Dirichlet, clean and under shift | `part_4/` | Experiments 5, 6, 7 |
 
 Dataset information (official URLs, versions, splits, preprocessing, scripts): **[DATA.md](DATA.md)**.
 
@@ -34,8 +34,8 @@ You need Python 3.10–3.12 and Git. A CUDA GPU is required to train Part 1 and 
 CIFAR-10-C logits. Everything else runs on a CPU.
 
 ```bash
-git clone https://github.com/puppyvn/neural_network_confidence.git
-cd neural_network_confidence
+git clone https://github.com/puppyvn/DL2026-23-23.git
+cd DL2026-23-23
 python -m venv .venv
 source .venv/bin/activate              # Windows: .venv\Scripts\activate
 # For a GPU, first install the CUDA build of PyTorch from https://pytorch.org/get-started/locally/
@@ -69,8 +69,8 @@ tables and figures. The values below are those in the report and in the committe
 ```bash
 cd part_2
 python data_preparation/prepare_data.py        # checks the committed logits -> data/processed/
-python evaluation/run_experiment.py            # Table 3, Figures 2-3
-python experiments/run_all.py                  # bootstrap CIs, controls, thresholds, 10 checkpoints, depth/architecture
+python evaluation/run_experiment.py            # Table 6, Figures 3-4
+python experiments/run_all.py                  # bootstrap CIs, controls, thresholds, 10 checkpoints, depth/architecture, RQ1 profile
 cd ..
 ```
 
@@ -78,7 +78,8 @@ cd ..
 |---|---|
 | `part_2/results/tables/p2_table_main.csv` | accuracy 93.07% at every T; ECE 5.37 / 2.02 / 24.22%; Risk@80% 1.36 / 1.44 / 1.46% |
 | `part_2/results/tables/p2_bootstrap_ci.csv` | AUROC 0.9014 / 0.8959 / 0.8914 |
-| `part_2/results/figures/fig_p2_reliability.png`, `fig_p2_risk_coverage.png`, `fig_p2_positive_control.png` | report Figures 2–3 |
+| `part_2/results/figures/fig_p2_reliability.png`, `fig_p2_risk_coverage.png`, `fig_p2_positive_control.png` | report Figures 3–4 |
+| `part_2/results/tables/p2_confidence_ranges.csv`, `p2_class_gap.csv`, `p2_ece_noise_floor.csv` | RQ1 answer: confidence ≥ 0.9: 98.11% vs 97.24% accuracy; < 0.9: 69.07% vs 60.11%; cat +4.93 points; ECE 2.02% vs 0.47% for a perfectly calibrated model |
 
 ### Step 2: Experiments 3–4, depth and architecture. Included in Step 1.
 
@@ -108,11 +109,11 @@ Training uses the settings in `part_1/config_train.yaml`: 50 epochs, SGD with Ne
 |---|---|
 | `part_1/results/experiments/summary_exp_a.csv` | accuracy 92.36 / 92.71 / 92.35 / 92.92 / 91.51%; ECE 2.16 / 2.04 / 2.40 / 2.16 / 1.94% (0.5× … 2×) |
 | `part_1/results/experiments/summary_exp_b.csv` | 1.0× model under five synthetic shifts, e.g. Quality: accuracy 33.44%, ECE 36.02% |
-| `part_1/results/experiments/fig_exp_a_*.png`, `fig_exp_b_*.png` | report Figure 1 and shift figures |
+| `part_1/results/experiments/fig_exp_a_*.png`, `fig_exp_b_*.png` | report Figure 1 (`fig_exp_b_*`: synthetic shifts, not used in the report) |
 
 Results vary slightly between training runs. The synthetic shifts are random on every load (see DATA.md §5).
 
-### Step 4: Experiment 5, raw confidence under CIFAR-10-C (Part 3). GPU about 5 minutes, CPU about 1 hour (first run).
+### Step 4: Experiment 6 (first half), raw confidence under CIFAR-10-C (Part 3). GPU about 5 minutes, CPU about 1 hour (first run).
 
 ```bash
 python part_3/run_part3.py                      # -> part_3/results/part3_<time>/
@@ -122,11 +123,11 @@ python part_3/run_part3.py                      # -> part_3/results/part3_<time>
 |---|---|
 | `part3_summary.csv` | accuracy 93.07 → 56.63%; median confidence 98.39 → 95.22%; ECE 2.02 → 29.05%; Risk@80% 1.44 → 36.70%; AUROC 0.896 → 0.774 |
 | `part3_per_corruption.csv` | severity 5: brightness 87.98% accuracy (ECE 4.86%), contrast 19.77% (ECE 63.54%) |
-| `figures/part3_boxplots.png`, `part3_reliability.png`, `part3_risk_coverage.png` | plan steps 3.1–3.3 |
+| `figures/part3_boxplots.png`, `part3_reliability.png`, `part3_risk_coverage.png` | report Figures 5–6 (Experiment 6) |
 
 The committed copy of these results is in `part_3/outputs/`.
 
-### Step 5: Experiment 6, calibration under normal conditions and shift (Part 4). Seconds once Step 4 has run.
+### Step 5: Experiments 5, 6 and 7, calibration under normal conditions and shift (Part 4). Seconds once Step 4 has run.
 
 ```bash
 cd part_4/src
@@ -140,7 +141,7 @@ cd ../..
 | `part4_split_summary.csv` | mean ECE over split seeds 42, 1, 2: 2.03 / 1.64 / 1.52% |
 | `part4_shift_mean.csv` | severity 5, mean over corruptions: ECE raw 29.39%, TS 28.49%, Dirichlet 28.28% |
 | `part4_shift_per_corruption.csv`, `part1b_per_corruption.csv` | per corruption × severity, used for the shift tables |
-| `figures/part4_clean_reliability.png`, `part4_shift_reliability.png`, `part4_shift_metrics.png` | report Figures 7 and Experiment 6 |
+| `figures/part4_clean_reliability.png`, `part4_shift_reliability.png`, `part4_shift_metrics.png` | report Figures 2 and 8 (Experiments 5 and 6) |
 
 The committed copies are in `part_4/output/` (clean) and `part_4/output/shift_run/` (under shift).
 
