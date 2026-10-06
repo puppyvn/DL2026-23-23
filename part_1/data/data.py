@@ -7,6 +7,15 @@ import torchvision.transforms.functional as TF
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from PIL import Image, ImageFilter
+import sys
+from pathlib import Path
+
+# CIFAR-10 is shared by all parts: it lives in <repo>/downloads/cifar10 (or $NNC_DATA_DIR/cifar10)
+# and is downloaded once, by whichever part needs it first.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.append(str(_REPO_ROOT))
+from shared.data import cifar10_dataset   # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -72,10 +81,8 @@ class Data_loader:
     # load_data  (training split — 50 000 samples)
     # ------------------------------------------------------------------
     def load_data(self):
-        self.data = torchvision.datasets.CIFAR10(
-            root='./data',
+        self.data = cifar10_dataset(
             train=True,
-            download=False,
             transform=None,   # keep as PIL so augmentation works uniformly
         )
 
@@ -90,10 +97,8 @@ class Data_loader:
         Call augmentation_validation() afterwards to build the 5 shifted
         versions of this test set for distribution-shift experiments.
         """
-        self.val_data = torchvision.datasets.CIFAR10(
-            root='./data',
+        self.val_data = cifar10_dataset(
             train=False,
-            download=False,
             transform=None,   # keep as PIL so shift pipelines apply uniformly
         )
 

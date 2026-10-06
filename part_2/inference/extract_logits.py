@@ -2,7 +2,8 @@
 
 This is the step that produced data/clean_logits.npz. Running it is optional: the evaluation uses the saved file.
 It needs PyTorch (requirements-inference.txt), the model code of huyvnphan/PyTorch_CIFAR10 and its resnet18.pt
-weights (downloaded automatically on first use, about 1 GB for the archive of all models).
+weights. Weights and CIFAR-10 come from the repository-wide downloads/ folder (shared/data.py), so they are
+downloaded only once for all parts; run  python -m shared.prepare_data  to fetch them in advance.
 
     python inference/extract_logits.py                    # -> data/recomputed_logits.npz
     python data_preparation/prepare_data.py --source data/recomputed_logits.npz
@@ -10,37 +11,23 @@ weights (downloaded automatically on first use, about 1 GB for the archive of al
 On a GPU the logits can differ from the saved ones in the last digits (about 1e-6); accuracy does not change.
 """
 import argparse
-import shutil
-import subprocess
 import sys
-import zipfile
 from pathlib import Path
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.append(str(Path(__file__).resolve().parents[2]))  # repository root, for shared/
 from part2 import config                                    # noqa: E402
-
-MODEL_REPO = "https://github.com/huyvnphan/PyTorch_CIFAR10.git"
-WEIGHTS_ID = "17fmN8eQdLpq2jIMQ_X0IXDPXfI9oVWgq"           # Google Drive id of the repository's weight archive
+from shared import data as shared_data                      # noqa: E402
 
 
-def load_model(model_source=config.ROOT / "external" / "PyTorch_CIFAR10", device="cpu"):
-    """Pretrained CIFAR-10 ResNet-18 in eval mode. Clones the model code and fetches the weights if missing."""
+def load_model(model_source=None, device="cpu"):
+    """Pretrained CIFAR-10 ResNet-18 in eval mode. By default the model code and weights come from the shared
+    downloads/models folder (fetched once for every part); --model-source points to another clone instead."""
+    if model_source is None:
+        model_source, _ = shared_data.resnet18_weights()
     model_source = Path(model_source)
-    if not model_source.exists():
-        subprocess.run(["git", "clone", "--depth", "1", MODEL_REPO, str(model_source)], check=True)
-    weights = model_source / "cifar10_models" / "state_dicts" / "resnet18.pt"
-    if not weights.exists():
-        import gdown
-        archive = model_source.parent / "cifar10_weights.zip"
-        if not archive.exists():
-            gdown.download(id=WEIGHTS_ID, output=str(archive), quiet=False)
-        weights.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(archive) as z:
-            member = next(n for n in z.namelist() if n.endswith("resnet18.pt"))
-            with z.open(member) as src, open(weights, "wb") as dst:
-                shutil.copyfileobj(src, dst)
     sys.path.insert(0, str(model_source))
     from cifar10_models.resnet import resnet18
     return resnet18(pretrained=True).eval().to(device)
@@ -57,15 +44,16 @@ def main():
     import torch
     import torchvision
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--model-source", type=Path, default=config.ROOT / "external" / "PyTorch_CIFAR10")
-    ap.add_argument("--cifar-dir", type=Path, default=config.ROOT / "external" / "cifar10")
+    ap.add_argument("--model-source", type=Path, default=None, help="default: shared downloads/models")
+    ap.add_argument("--cifar-dir", type=Path, default=None, help="default: shared downloads/cifar10")
     ap.add_argument("--out", type=Path, default=config.ROOT / "data" / "recomputed_logits.npz")
     ap.add_argument("--batch", type=int, default=500)
     args = ap.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(args.model_source, device)
-    test = torchvision.datasets.CIFAR10(str(args.cifar_dir), train=False, download=True)
+    test = (shared_data.cifar10_dataset(train=False) if args.cifar_dir is None
+            else torchvision.datasets.CIFAR10(str(args.cifar_dir), train=False, download=True))
     x, y = normalise(test.data), np.array(test.targets, dtype=np.int64)
     with torch.no_grad():
         z = torch.cat([model(x[i:i + args.batch].to(device)).float().cpu() for i in range(0, len(x), args.batch)]).numpy()

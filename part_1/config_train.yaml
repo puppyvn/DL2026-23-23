@@ -11,7 +11,7 @@ model:
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
 data:
-  root: "./data"             # CIFAR-10 root (must already be downloaded)
+  root: "../downloads/cifar10" # informational: data/data.py reads CIFAR-10 from the shared downloads/ folder
   num_workers: 4
   pin_memory: true
   train_split: 0.9           # Fraction of training data used for training

@@ -8,6 +8,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.special import softmax
+import os
+import sys
+sys.path.append(str(Path(__file__).resolve().parents[2]))   # repository root, for shared/
+from shared import data as shared_data                       # one download folder for every part
 from utils import (
     K, BINS, LAMBDAS, CORRUPTIONS, SEVERITIES, COLORS, METHOD_NAMES, DEFAULT_ROOT,
     project_paths, display, evaluate, make_split, fit_temperature,
@@ -21,7 +25,7 @@ from utils import (
 def load_logits(cache, need_corruptions=False):
     clean = cache / "clean_logits.npz"
     if not clean.exists():
-        raise FileNotFoundError("Clean logits not found. Run prepare_data.py --dataset clean with the same --root first.")
+        raise FileNotFoundError("Clean logits not found. Run  python -m shared.prepare_data  from the repository root.")
     with np.load(clean, allow_pickle=False) as saved:
         Z, Y = saved["logits"].astype(np.float64), saved["labels"].astype(int)
         provenance = str(saved["provenance"])
@@ -34,7 +38,7 @@ def load_logits(cache, need_corruptions=False):
         for name in CORRUPTIONS:
             path = cache / f"corruption_{name}.npz"
             if not path.exists():
-                raise FileNotFoundError(f"Missing {path.name}. Run prepare_data.py --dataset corruptions with the same --root.")
+                raise FileNotFoundError(f"Missing {path.name}. Run  python -m shared.prepare_data  from the repository root.")
             with np.load(path, allow_pickle=False) as saved:
                 if str(saved["provenance"]) != provenance or not np.array_equal(saved["labels"], Y):
                     raise ValueError(f"Checkpoint, preprocessing, or label mismatch: {path}")
@@ -340,7 +344,9 @@ def run_part3(Z, Y, C, RESULTS, FIGURES, SEED=42, show=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--part", choices=("part4", "sensitivity", "shift", "part1b", "part2", "part3", "all"), default="part4")
-    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help="Same artifact directory used by prepare_data.py")
+    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help="Where results/ is written")
+    parser.add_argument("--data-dir", type=Path, default=None,
+                        help="Shared download folder with logits/ (default: <repo>/downloads or $NNC_DATA_DIR)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--seeds", type=int, nargs="+", default=[42, 1, 2], help="Additional split seeds for sensitivity analysis")
     parser.add_argument("--no-show", action="store_true", help="Save figures without opening interactive windows")
@@ -351,13 +357,18 @@ def main():
     if args.no_show:
         plt.switch_backend("Agg")
     plt.rcParams.update({"figure.dpi": 110, "font.size": 10, "axes.grid": True, "grid.alpha": .22})
-    root, cache, result_root, _ = project_paths(args.root)
+    if args.data_dir:
+        os.environ["NNC_DATA_DIR"] = str(args.data_dir.expanduser().resolve())
+    root, _, result_root, _ = project_paths(args.root)
     # A separate run directory prevents stale figures from entering the ZIP.
     from datetime import datetime, timezone
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     results = result_root / f"{args.part}_seed{args.seed}_{stamp}"
     figures = results / "figures"
     need_corruptions = args.part in ("shift", "part1b", "part3", "all")
+    assert tuple(CORRUPTIONS) == tuple(shared_data.CORRUPTIONS)
+    # Logits are computed once in the shared folder (downloading only what is missing) and reused by Part 3.
+    cache = shared_data.ensure_logits(CORRUPTIONS if need_corruptions else ())
     Z, Y, provenance, C = load_logits(cache, need_corruptions)
     figures.mkdir(parents=True, exist_ok=True)
     show = not args.no_show
