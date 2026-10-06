@@ -1,4 +1,0 @@
-T,errors rejected @ coverage 80%,accepted if conf >= 0.9,risk if conf >= 0.9 %,threshold giving 80% coverage
-0.5,84%,95.4%,4.94,0.9998
-1.0,83%,88.8%,2.76,0.9685
-2.0,83%,0.0%,,0.6601
