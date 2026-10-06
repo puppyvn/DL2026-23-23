@@ -7,32 +7,32 @@ severities 1-5 for five corruptions (gaussian_noise, motion_blur, brightness, co
   3.2  reliability diagrams per severity (+ ECE / ACE)
   3.3  Risk-Coverage per severity (+ Risk@60%, Risk@80%, AUROC)
 
-Run prepare_data.py first, then:
-    python run_part3.py                    # reads ./artifacts/cache, writes ./artifacts/results/part3_<time>/
-    python run_part3.py --root /path/to/artifacts
+The logits come from the shared downloads/logits folder (also used by Part 4) and are computed on first use:
+    python run_part3.py                    # writes part_3/results/part3_<time>/
+    python run_part3.py --data-dir /content/drive/MyDrive/nnc_data     # shared folder elsewhere
 """
 import argparse
 import json
+import os
+from pathlib import Path
 from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from common import (K, BINS, CORRUPTIONS, SEVERITIES, DEFAULT_ROOT, PALETTE, SEVERITY_COLORS,
-                    project_paths, softmax, evaluate, reliability_bins, risk_coverage)
+from common import (K, BINS, CORRUPTIONS, SEVERITIES, PALETTE, SEVERITY_COLORS,
+                    softmax, evaluate, reliability_bins, risk_coverage)
+
+HERE = Path(__file__).resolve().parent
 
 
-def load_logits(cache):
-    with np.load(cache / "clean_logits.npz", allow_pickle=False) as saved:
-        Z, Y, provenance = saved["logits"].astype(np.float64), saved["labels"].astype(int), str(saved["provenance"])
+def load_logits():
+    """Clean + CIFAR-10-C logits from the shared cache (computed, and data downloaded, only if missing)."""
+    from shared.data import load_logits as shared_load_logits
+    Z, Y, provenance, C = shared_load_logits(CORRUPTIONS, need_corruptions=True)
     assert Z.shape == (10000, K) and np.all(np.bincount(Y, minlength=K) == 1000)
-    C = {}
     for name in CORRUPTIONS:
-        with np.load(cache / f"corruption_{name}.npz", allow_pickle=False) as saved:
-            if str(saved["provenance"]) != provenance or not np.array_equal(saved["labels"], Y):
-                raise ValueError(f"corruption_{name}.npz was made with a different checkpoint or label order.")
-            C[name] = saved["logits"].astype(np.float64)
         assert C[name].shape == (5, 10000, K) and np.isfinite(C[name]).all()
     return Z, Y, C, provenance
 
@@ -55,15 +55,17 @@ def draw_reliability(ax, p, y, title, color):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=DEFAULT_ROOT, help="Same folder used by prepare_data.py")
+    ap.add_argument("--data-dir", help="Shared download folder (default: <repo>/downloads or $NNC_DATA_DIR)")
+    ap.add_argument("--out", default=HERE / "results", help="Where to write part3_<time>/")
     ap.add_argument("--seed", type=int, default=42, help="Seed of the fixed 500-image batches")
     args = ap.parse_args()
     plt.rcParams.update({"figure.dpi": 110, "font.size": 10, "axes.grid": True, "grid.alpha": .22})
-    _, cache, results = project_paths(args.root)
-    out = results / f"part3_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+    if args.data_dir:
+        os.environ["NNC_DATA_DIR"] = str(Path(args.data_dir).expanduser().resolve())
+    out = Path(args.out) / f"part3_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     figs = out / "figures"
     figs.mkdir(parents=True, exist_ok=True)
-    Z, Y, C, provenance = load_logits(cache)
+    Z, Y, C, provenance = load_logits()
 
     # Per corruption x severity, all 10,000 images.
     rows = [{"Corruption": c, "Severity": s, **evaluate(softmax(C[c][s - 1]), Y)}

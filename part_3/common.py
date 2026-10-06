@@ -1,14 +1,16 @@
 """Shared settings, metrics and plot helpers for Part 3 (raw confidence under CIFAR-10-C shift)."""
+import sys
 from pathlib import Path
 import numpy as np
 from scipy.stats import rankdata
 
-K, BINS = 10, 15
-CORRUPTIONS = ("gaussian_noise", "motion_blur", "brightness", "contrast", "pixelate")
-SEVERITIES = (1, 2, 3, 4, 5)
-MEAN = (0.4914, 0.4822, 0.4465)
-STD = (0.2471, 0.2435, 0.2616)
-DEFAULT_ROOT = Path(__file__).resolve().parent / "artifacts"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+# Dataset constants and all downloads live in shared/ (one copy for every part).
+from shared.data import K, CORRUPTIONS, SEVERITIES, MEAN, STD   # noqa: E402,F401
+
+BINS = 15
 
 PALETTE = {"charcoal": "#333333", "blue": "#2166AC", "orange": "#D6600A",
            "green": "#1B7837", "red": "#C0392B", "purple": "#6A3D9A"}
@@ -16,14 +18,6 @@ PALETTE = {"charcoal": "#333333", "blue": "#2166AC", "orange": "#D6600A",
 SEVERITY_COLORS = dict(zip((0,) + SEVERITIES,
                            [PALETTE[c] for c in ("charcoal", "green", "blue", "orange", "red", "purple")]))
 CORRUPTION_COLORS = dict(zip(CORRUPTIONS, [PALETTE[c] for c in ("orange", "purple", "blue", "red", "green")]))
-
-
-def project_paths(root):
-    root = Path(root).expanduser().resolve()
-    cache, results = root / "cache", root / "results"
-    for folder in (root, cache, results):
-        folder.mkdir(parents=True, exist_ok=True)
-    return root, cache, results
 
 
 def softmax(z):
