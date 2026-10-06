@@ -1,0 +1,41 @@
+{
+  "part": "sensitivity",
+  "seed": 42,
+  "split_seeds": [
+    42,
+    1,
+    2
+  ],
+  "bins": 15,
+  "lambda_grid": [
+    0.0,
+    0.001,
+    0.01,
+    0.1,
+    1.0,
+    10.0,
+    100.0
+  ],
+  "provenance": {
+    "checkpoint": "72d30ca70e7d54e24a26628113604c40bc872eb8dc7a44f50ec58c3a1400f1b0",
+    "commit": "641cac24371b17052b9bb6e56af1c83b5e97cd7f",
+    "mean": [
+      0.4914,
+      0.4822,
+      0.4465
+    ],
+    "std": [
+      0.2471,
+      0.2435,
+      0.2616
+    ]
+  },
+  "versions": {
+    "numpy": "2.2.4",
+    "scipy": "1.17.1",
+    "pandas": "2.2.3",
+    "matplotlib": "3.10.1",
+    "scikit-learn": "1.9.0"
+  },
+  "aggregation": "Shift trends: mean across corruptions. Reliability/RC: pooled samples."
+}
