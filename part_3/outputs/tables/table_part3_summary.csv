@@ -1,7 +1,0 @@
-Severity,Condition,Accuracy (%),ECE (%),ACE (%),Median Conf (%),Median Batch Acc (%),Risk@80% Cov (%),Risk@60% Cov (%),AURC
-0,Clean,94.46,3.39,3.38,99.98,94.4,0.6,0.2,0.0057
-1,gaussian_noise_sev1,76.76,15.9,15.9,99.76,76.8,14.3,7.53,0.0735
-2,gaussian_noise_sev2,39.19,47.42,47.41,96.32,38.9,56.93,51.72,0.4404
-3,gaussian_noise_sev3,16.53,62.8,62.8,83.82,16.5,82.15,80.2,0.7539
-4,gaussian_noise_sev4,10.35,80.39,80.39,94.98,10.1,89.1,88.3,0.8652
-5,gaussian_noise_sev5,10.0,86.03,86.03,97.55,9.8,89.16,88.52,0.8849
