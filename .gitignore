@@ -1,5 +1,3 @@
-downloads/
+results/
+artifacts/
 __pycache__/
-*.pyc
-part_3/results/
-part_4/src/artifacts/
