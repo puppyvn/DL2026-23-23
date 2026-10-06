@@ -1,114 +1,176 @@
-# When Can We Trust Neural Network Confidence? — Part 2
+# When Can We Trust Neural Network Confidence?
 
-Part 2 asks whether two tools can be trusted to read a model's confidence: the **Reliability Diagram** (does a confidence of 0.8 mean 80% correct?) and the **Risk–Coverage curve** (are the most confident predictions the correct ones?). We create a confidence fault on purpose and check what each tool reports.
+An empirical study of whether the softmax confidence of CIFAR-10 classifiers reflects the probability of being
+correct, how to check it, whether it survives distribution shift, and whether post-hoc calibration (Temperature
+Scaling, Dirichlet Calibration) fixes it under normal conditions and under shift. No new method is proposed. All
+results come from the scripts in this repository.
 
-The fault: the logits of a pretrained CIFAR-10 ResNet-18 are divided by a temperature T before the softmax, with T = 0.5 (sharper, pushes towards overconfidence), T = 1 (baseline) and T = 2 (softer, pushes towards underconfidence). Dividing by T never changes the predicted class, so accuracy is the same at every T and only the confidence moves. Everything runs on the 10,000 clean CIFAR-10 test images; no weight is changed and nothing is trained.
+| Part | Question | Folder | Report |
+|---|---|---|---|
+| 1 | Why not trust raw confidence? Width, depth, architecture, distribution shift | `part_1/`, `part_2/experiments/depth_architecture.py` | Experiments 1, 3, 4 |
+| 2 | How do we check confidence? Controlled temperature stress test (T = 0.5 / 1 / 2) | `part_2/` | Experiment 2 |
+| 3 | Can we trust the model forever? Raw confidence under CIFAR-10-C shift | `part_3/` | Experiment 5 |
+| 4 | What to do after miscalibration? Temperature Scaling and Dirichlet, clean and under shift | `part_4/` | Experiment 6 |
 
-## Repository layout
+Dataset information (official URLs, versions, splits, preprocessing, scripts): **[DATA.md](DATA.md)**.
 
-| Folder | Role | Entry point |
-| --- | --- | --- |
-| `data/` | input logits and labels (`clean_logits.npz`) | [data/README.md](data/README.md) |
-| `data_preparation/` | checks the logits and writes the arrays used by the evaluation | `prepare_data.py` |
-| `training/` | not applicable to Part 2, explained in [training/README.md](training/README.md) | — |
-| `evaluation/` | the experiment: temperatures, reliability, risk–coverage, ranking checks, summary | `run_experiment.py` |
-| `experiments/` | supporting experiments: bootstrap intervals, positive and reverse controls, fixed thresholds, ten checkpoints | `run_all.py` |
-| `inference/` | recomputes the logits from the pretrained checkpoint on the test set | `extract_logits.py` |
-| `demo/` | one test image (or your own image) at T = 0.5, 1, 2 | `demo.py` |
-| `src/part2/` | shared code: settings, metrics, figures | `config.py`, `metrics.py`, `plots.py` |
-| `tests/` | metric checks on synthetic data with known answers | `test_metrics.py` |
-| `results/` | figures and tables produced by the evaluation | — |
+## Repository structure
+
+```
+shared/            downloads + inference shared by all parts (data.py, prepare_data.py)
+part_1/            width-scaled ResNet-50: training (src/), evaluation (experiments.py), results/
+part_2/            temperature stress test: data_preparation/, evaluation/, experiments/, tests/, results/
+part_3/            raw confidence under CIFAR-10-C: run_part3.py, common.py, outputs/
+part_4/            post-hoc calibration: src/experiments.py, src/utils.py, output/ (output/shift_run/ = under shift)
+run_colab.ipynb    one-click Colab run of Parts 2-4
+requirements.txt   all dependencies
+DATA.md            dataset documentation
+downloads/         created on first run, not tracked: CIFAR-10, CIFAR-10-C, weights, logits
+```
 
 ## Installation
 
-Python 3.10 or newer. The main pipeline needs CPU only.
+You need Python 3.10–3.12 and Git. A CUDA GPU is required to train Part 1 and recommended for computing the
+CIFAR-10-C logits. Everything else runs on a CPU.
 
 ```bash
-git clone <this repository>
-cd part2-final-repo
+git clone https://github.com/puppyvn/neural_network_confidence.git
+cd neural_network_confidence
 python -m venv .venv
-# Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
+source .venv/bin/activate              # Windows: .venv\Scripts\activate
+# For a GPU, first install the CUDA build of PyTorch from https://pytorch.org/get-started/locally/
 pip install -r requirements.txt
 ```
 
-## Reproducing the results
-
-Run from the repository root:
+Check the installation (runs in seconds and needs no download):
 
 ```bash
-python tests/test_metrics.py                 # metric code behaves as expected
-python data_preparation/prepare_data.py      # -> data/processed/
-python evaluation/run_experiment.py          # -> results/figures/, results/tables/
+cd part_2 && python tests/test_metrics.py && cd ..
 ```
 
-The whole pipeline takes a few seconds. `prepare_data.py` should print accuracy 93.07%, ECE 2.02% and ACE 2.41% at T = 1. `run_experiment.py` writes two figures and five tables and prints this summary:
-
-| T | Accuracy | Mean confidence | ECE | ACE | Signed gap | Risk@80% | Risk@60% |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 0.5 | 93.07% | 98.44% | 5.37% | 5.37% | +5.37% | 1.36% | 0.70% |
-| 1 | 93.07% | 94.85% | 2.02% | 2.41% | +1.78% | 1.44% | 0.82% |
-| 2 | 93.07% | 68.85% | 24.22% | 24.22% | −24.22% | 1.46% | 0.88% |
-
-Ranking against T = 1: Spearman ρ = 0.9937 (T = 0.5) and 0.9982 (T = 2); 99.45% and 99.56% of the top-80% accepted set are the same images.
-
-| Output | Content |
-| --- | --- |
-| `results/figures/fig_p2_reliability.png` | Reliability Diagram per T. Blue: accuracy per bin; pink: overconfidence gap; teal: underconfidence gap |
-| `results/figures/fig_p2_risk_coverage.png` | Risk–Coverage curves of the three temperatures |
-| `results/tables/p2_calibration.csv` | accuracy, mean confidence, ECE, ACE per T |
-| `results/tables/p2_risk_coverage.csv` | Risk@80% and Risk@60% per T |
-| `results/tables/p2_direction.csv` | signed gap and share of images below / above y = x per T |
-| `results/tables/p2_ranking.csv` | change in Risk@k, Spearman ρ and top-k overlap vs T = 1 |
-| `results/tables/p2_table_main.csv` | summary table above |
-| `results/figures/fig_p2_positive_control.png`, `fig_p2_reverse_control.png`, `fig_p2_thresholds.png`, `fig_p2_robustness_10_models.png` | figures of the supporting experiments |
-| `results/tables/p2_bootstrap_ci.csv`, `p2_diff_vs_T1.csv`, `p2_positive_control.csv`, `p2_reverse_control.csv`, `p2_thresholds.csv`, `p2_robustness_10_models.csv` | tables of the supporting experiments (proportions, not percentages, unless the column says %) |
-
-### Supporting experiments
+## Data (downloaded once for all parts)
 
 ```bash
-python experiments/run_all.py                # about one minute; or run each script on its own
+python -m shared.prepare_data          # CIFAR-10 + ResNet-18 weights + CIFAR-10-C (5 corruptions) + logits
 ```
 
-| Script | What it computes | Output |
-| --- | --- | --- |
-| `bootstrap_ci.py` | 95% paired bootstrap intervals (1,000 resamples, seed 0) of each metric at every T and of its difference from T = 1, including AUROC | `p2_bootstrap_ci.csv`, `p2_diff_vs_T1.csv` |
-| `positive_control.py` | Risk@80%, Risk@60%, E-AURC, AUROC and Spearman ρ after adding Gaussian noise (σ = 0.003 to 0.3, 20 runs each) to the T = 1 confidence, with oracle and random rankings | `fig_p2_positive_control.png`, `p2_positive_control.csv` |
-| `reverse_control.py` | the same metrics for two confidences built to be calibrated (constant = accuracy; precision of the predicted class), and 200 random tie-breaks of the constant one | `fig_p2_reverse_control.png`, `p2_reverse_control.csv` |
-| `thresholds.py` | coverage and risk of the rule "accept if confidence ≥ threshold" at every T, errors rejected at 80% coverage | `fig_p2_thresholds.png`, `p2_thresholds.csv` |
-| `robustness_10_models.py` | the stress test on the ten checkpoints in `data/clean_logits.npz`, with intervals and differences from T = 1 | `fig_p2_robustness_10_models.png`, `p2_robustness_10_models.csv` |
+This downloads about 4 GB into `downloads/`, verifies the official checksums, and computes the ResNet-18 logits
+once for Parts 3 and 4. Running it again downloads nothing. Use `--only cifar10` if you only run Part 1,
+`--delete-archive` to free 2.9 GB after extraction, and `--data-dir PATH` (or `NNC_DATA_DIR=PATH`) to store the
+data elsewhere. Details are in [DATA.md](DATA.md).
 
-Expected values for checking a run: ECE change vs T = 1 of +3.35 and +22.19 pp; Risk@80% change of −0.075 and +0.025 pp; AUROC 0.9014 / 0.8959 / 0.8914 at T = 0.5 / 1 / 2; constant confidence gives ECE 0.00% and AUROC 0.500.
+## Reproducing the main results
 
-Definitions: confidence is the maximum softmax probability; ECE uses 15 equal-width bins (lo, hi]; ACE uses 15 equal-mass bins; signed gap = mean confidence − accuracy; Risk@c is the error rate among the c·N most confident predictions, ranked by log-confidence (same order as confidence, but no ties at 1.0 when T = 0.5).
+Run every command from the repository root unless it starts with `cd`. Each step prints its key numbers and writes
+tables and figures. The values below are those in the report and in the committed result folders.
 
-## Demo
+### Step 1: Experiment 2, temperature stress test (Part 2). CPU, about 2 minutes, no download.
 
 ```bash
-python demo/demo.py --index 0
+cd part_2
+python data_preparation/prepare_data.py        # checks the committed logits -> data/processed/
+python evaluation/run_experiment.py            # Table 3, Figures 2-3
+python experiments/run_all.py                  # bootstrap CIs, controls, thresholds, 10 checkpoints, depth/architecture, RQ1 profile
+cd ..
 ```
 
-```text
-test image #0: true class = cat
-  T = 0.5  predicted cat        confidence 1.0000  correct  rank  6454 of 10000  accepted at 80% coverage
-  T = 1.0  predicted cat        confidence 0.9826  correct  rank  5775 of 10000  accepted at 80% coverage
-  T = 2.0  predicted cat        confidence 0.7213  correct  rank  5451 of 10000  accepted at 80% coverage
-```
+| Output | Expected (T = 0.5 / 1 / 2) |
+|---|---|
+| `part_2/results/tables/p2_table_main.csv` | accuracy 93.07% at every T; ECE 5.37 / 2.02 / 24.22%; Risk@80% 1.36 / 1.44 / 1.46% |
+| `part_2/results/tables/p2_bootstrap_ci.csv` | AUROC 0.9014 / 0.8959 / 0.8914 |
+| `part_2/results/figures/fig_p2_reliability.png`, `fig_p2_risk_coverage.png`, `fig_p2_positive_control.png` | report Figures 2–3 |
+| `part_2/results/tables/p2_confidence_ranges.csv`, `p2_class_gap.csv`, `p2_ece_noise_floor.csv` | RQ1 answer: confidence ≥ 0.9: 98.11% vs 97.24% accuracy; < 0.9: 69.07% vs 60.11%; cat +4.93 points; ECE 2.02% vs 0.47% for a perfectly calibrated model |
 
-Use `--index` for any test image (0–9999) and `--coverage` for another operating point.
+### Step 2: Experiments 3–4, depth and architecture. Included in Step 1.
 
-## Inference from the checkpoint (optional)
+`part_2/experiments/depth_architecture.py` (run by `run_all.py`) evaluates the ten public checkpoints at T = 1.
 
-`data/clean_logits.npz` was produced by running the pretrained network on the test set. To regenerate it:
+| Output | Expected |
+|---|---|
+| `part_2/results/tables/p2_depth_architecture.csv` | ResNet-18/34/50 ECE 2.02 / 2.63 / 2.23%; VGG-13 accuracy 94.21%, ECE 1.11%, ACE 1.74%; DenseNet-121→169 ECE 2.02→2.37% |
+| `part_2/results/tables/p2_depth_differences.csv` | ResNet-34 − ResNet-18: ECE +0.60 points, 95% CI excludes 0; accuracy CI includes 0 |
+| `part_2/results/figures/fig_p2_depth_architecture.png` | accuracy vs ECE / ACE with 95% bootstrap intervals |
+
+### Step 3: Experiment 1, model width (Part 1). GPU, long.
 
 ```bash
-pip install -r requirements-inference.txt
-python inference/extract_logits.py                                   # -> data/recomputed_logits.npz
-python data_preparation/prepare_data.py --source data/recomputed_logits.npz
-python evaluation/run_experiment.py
+python -m shared.prepare_data --only cifar10
+cd part_1
+python -m src.train --config config_train.yaml       # trains 0.5x, 0.75x, 1x, 1.5x, 2x ResNet-50 -> checkpoints/
+python experiments.py --config config_train.yaml     # Experiment A (width) and B (synthetic shifts)
+cd ..
 ```
 
-The first run clones the model code of [huyvnphan/PyTorch_CIFAR10](https://github.com/huyvnphan/PyTorch_CIFAR10) into `external/`, downloads its weight archive (about 1 GB) and the CIFAR-10 test set. On a GPU the logits can differ from the saved ones in the last digits; accuracy is unchanged. To classify your own image with the same model:
+Training uses the settings in `part_1/config_train.yaml`: 50 epochs, SGD with Nesterov momentum, learning rate
+0.1, cosine schedule with 5-epoch warm-up, seed 42. The 2.0× model alone took about 14.6 h on the team's GPU
+(`part_1/results/train/summary.csv`).
+
+| Output | Expected |
+|---|---|
+| `part_1/results/experiments/summary_exp_a.csv` | accuracy 92.36 / 92.71 / 92.35 / 92.92 / 91.51%; ECE 2.16 / 2.04 / 2.40 / 2.16 / 1.94% (0.5× … 2×) |
+| `part_1/results/experiments/summary_exp_b.csv` | 1.0× model under five synthetic shifts, e.g. Quality: accuracy 33.44%, ECE 36.02% |
+| `part_1/results/experiments/fig_exp_a_*.png`, `fig_exp_b_*.png` | report Figure 1 and shift figures |
+
+Results vary slightly between training runs. The synthetic shifts are random on every load (see DATA.md §5).
+
+### Step 4: Experiment 5, raw confidence under CIFAR-10-C (Part 3). GPU about 5 minutes, CPU about 1 hour (first run).
 
 ```bash
-python demo/demo.py --image path/to/image.png
+python part_3/run_part3.py                      # -> part_3/results/part3_<time>/
 ```
+
+| Output | Expected (clean → severity 5, five corruptions pooled) |
+|---|---|
+| `part3_summary.csv` | accuracy 93.07 → 56.63%; median confidence 98.39 → 95.22%; ECE 2.02 → 29.05%; Risk@80% 1.44 → 36.70%; AUROC 0.896 → 0.774 |
+| `part3_per_corruption.csv` | severity 5: brightness 87.98% accuracy (ECE 4.86%), contrast 19.77% (ECE 63.54%) |
+| `figures/part3_boxplots.png`, `part3_reliability.png`, `part3_risk_coverage.png` | plan steps 3.1–3.3 |
+
+The committed copy of these results is in `part_3/outputs/`.
+
+### Step 5: Experiment 6, calibration under normal conditions and shift (Part 4). Seconds once Step 4 has run.
+
+```bash
+cd part_4/src
+python experiments.py --part all --no-show --zip   # -> part_4/src/artifacts/results/all_seed42_<time>/
+cd ../..
+```
+
+| Output | Expected |
+|---|---|
+| `part4_clean_seed42.csv` | fitted T = 1.0369; ECE raw 2.30%, Temperature Scaling 1.78%, Dirichlet 1.60%; accuracy 92.78 / 92.78 / 92.76% |
+| `part4_split_summary.csv` | mean ECE over split seeds 42, 1, 2: 2.03 / 1.64 / 1.52% |
+| `part4_shift_mean.csv` | severity 5, mean over corruptions: ECE raw 29.39%, TS 28.49%, Dirichlet 28.28% |
+| `part4_shift_per_corruption.csv`, `part1b_per_corruption.csv` | per corruption × severity, used for the shift tables |
+| `figures/part4_clean_reliability.png`, `part4_shift_reliability.png`, `part4_shift_metrics.png` | report Figures 7 and Experiment 6 |
+
+The committed copies are in `part_4/output/` (clean) and `part_4/output/shift_run/` (under shift).
+
+### Everything at once on Colab
+
+Open `run_colab.ipynb` in Google Colab, select a T4 GPU, and run all cells. It runs the data step once, then
+Steps 1, 2, 4 and 5, and downloads the result folders. Set `USE_DRIVE = True` to keep the downloads in Google
+Drive between sessions. Part 1 (training) is not included.
+
+## Reproducibility notes
+
+- **Model:** Parts 2–4 use one frozen checkpoint, ResNet-18 from huyvnphan/PyTorch_CIFAR10 (SHA-256 `72d30ca7…`).
+  It is checked when loaded and recorded in each `run_manifest.json`.
+- **Seeds:** split seeds 42 / 1 / 2 (Part 4); bootstrap seed 0 with 1,000 resamples (Parts 2 and 4); batch seed 42
+  (Part 3); training seed 42 (Part 1).
+- **GPU differences:** recomputing the logits on a GPU changes values only in the last digits. Two full Colab runs
+  agreed with each other and with the committed results to all reported decimals.
+- **Bins:** 15 bins throughout. ECE uses equal-width bins; ACE uses equal-mass bins.
+
+## Team
+
+Nguyen Tat Hoang Viet (23BA14320), Luu Huu Tinh (23BA14283), Hoang Gia Thanh (23BA14261), Phan Duy Hoang
+(23BA14117), Le Dac Duy (23BA14084), Phan Minh Trang (23BA14290), Le Huu Duc (2411139).
+
+## References
+
+- C. Guo, G. Pleiss, Y. Sun, K. Q. Weinberger. On Calibration of Modern Neural Networks. ICML 2017.
+- J. Nixon et al. Measuring Calibration in Deep Learning. CVPR Workshops 2019.
+- D. Hendrycks, T. Dietterich. Benchmarking Neural Network Robustness to Common Corruptions and Perturbations. ICLR 2019.
+- M. Kull et al. Beyond Temperature Scaling: Dirichlet Calibration. NeurIPS 2019.
+- Y. Ovadia et al. Can You Trust Your Model's Uncertainty? Evaluating Predictive Uncertainty Under Dataset Shift. NeurIPS 2019.
+- Y. Geifman, R. El-Yaniv. Selective Classification for Deep Neural Networks. NeurIPS 2017.
