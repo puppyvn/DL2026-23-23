@@ -22,6 +22,7 @@ part_1/            width-scaled ResNet-50: training (src/), evaluation (experime
 part_2/            temperature stress test: data_preparation/, evaluation/, experiments/, tests/, results/
 part_3/            raw confidence under CIFAR-10-C: run_part3.py, common.py, outputs/
 part_4/            post-hoc calibration: src/experiments.py, src/utils.py, output/ (output/shift_run/ = under shift)
+report/            make_report_figures.py (report Figures 7 and 9), verify_report.py (checks the report's numbers)
 run_colab.ipynb    one-click Colab run of Parts 2-4
 requirements.txt   all dependencies
 DATA.md            dataset documentation
@@ -144,6 +145,23 @@ cd ../..
 | `figures/part4_clean_reliability.png`, `part4_shift_reliability.png`, `part4_shift_metrics.png` | report Figures 2 and 8 (Experiments 5 and 6) |
 
 The committed copies are in `part_4/output/` (clean) and `part_4/output/shift_run/` (under shift).
+
+### Step 6: the two figures drawn only for the report. CPU, seconds.
+
+```bash
+python report/make_report_figures.py            # -> report/figures/fig_rq2_shift_summary.pdf, fig_depth_families.pdf
+```
+
+| Output | Expected |
+|---|---|
+| `report/figures/fig_rq2_shift_summary.pdf` | report Figure 7: accuracy, ECE and NLL of raw / TS / Dirichlet by severity (from `part_4/output/`) |
+| `report/figures/fig_depth_families.pdf` | report Figure 9: accuracy, ECE and ACE per family with 95% intervals (from `p2_depth_architecture.csv`) |
+
+Every other report figure is written by Steps 1–5 (the committed copies are identical to the figures in the report).
+
+To check every number in the report against the repository (328 values: Tables 2 and 4–11 and the numbers in the
+text), run `python report/verify_report.py`. Pass your Part 4 run folder as an argument to check a fresh run too:
+`python report/verify_report.py part_4/src/artifacts/results/all_seed42_<time>`.
 
 ### Everything at once on Colab
 
