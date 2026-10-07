@@ -1,4 +1,5 @@
-"""Report Experiments 3 (depth) and 4 (architecture): raw confidence (T = 1) of ten public CIFAR-10 checkpoints.
+"""
+Report Experiments 3 (depth) and 4 (architecture): raw confidence (T = 1) of ten public CIFAR-10 checkpoints.
 
 Uses the test-set logits of ResNet-18/34/50, VGG-11/13/16/19 and DenseNet-121/161/169 stored in
 data/clean_logits.npz (huyvnphan/PyTorch_CIFAR10, evaluated unchanged). For every model: accuracy, ECE
