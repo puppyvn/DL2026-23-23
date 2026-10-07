@@ -1,6 +1,0 @@
-# only for inference/extract_logits.py and demo/demo.py --image
--r requirements.txt
-torch>=2.0
-torchvision>=0.15
-gdown>=5.0
-pillow>=9.0
