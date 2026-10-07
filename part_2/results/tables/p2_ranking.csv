@@ -1,0 +1,4 @@
+T,accepted errors top-80%,images exchanged vs T=1 top-80%,accepted errors top-60%,images exchanged vs T=1 top-60%
+0.5,109,44,42,179
+1.0,115,0,49,0
+2.0,117,35,53,81
