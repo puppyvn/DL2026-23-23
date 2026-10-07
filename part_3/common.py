@@ -19,7 +19,7 @@ SEVERITY_COLORS = dict(zip((0,) + SEVERITIES,
                            [PALETTE[c] for c in ("charcoal", "green", "blue", "orange", "red", "purple")]))
 CORRUPTION_COLORS = dict(zip(CORRUPTIONS, [PALETTE[c] for c in ("orange", "purple", "blue", "red", "green")]))
 
-
+#I was here
 def softmax(z):
     z = np.asarray(z, dtype=np.float64)
     z = z - z.max(axis=1, keepdims=True)
