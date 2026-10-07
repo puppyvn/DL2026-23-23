@@ -1,4 +1,0 @@
-T,expected,signed gap % (conf - acc),samples below y=x (over),samples above y=x (under),diagram says
-0.5,overconfident,5.374435697529556,100.0,0.0,overconfident
-1.0,near calibrated,1.777875342208679,98.0,2.0,overconfident
-2.0,underconfident,-24.217535229480667,0.0,100.0,underconfident
