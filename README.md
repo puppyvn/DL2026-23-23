@@ -71,7 +71,7 @@ tables and figures. The values below are those in the report and in the committe
 cd part_2
 python data_preparation/prepare_data.py        # checks the committed logits -> data/processed/
 python evaluation/run_experiment.py            # Table 6, Figures 3-4
-python experiments/run_all.py                  # bootstrap CIs, controls, thresholds, 10 checkpoints, depth/architecture, RQ1 profile
+python experiments/run_all.py                  # bootstrap CIs, noise and constant-confidence controls, depth/architecture, RQ1 profile
 cd ..
 ```
 
