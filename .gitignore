@@ -6,3 +6,5 @@ part_4/src/artifacts/
 # Python
 __pycache__/
 *.pyc
+# Part 2 arrays rebuilt by data_preparation/prepare_data.py
+part_2/data/processed/

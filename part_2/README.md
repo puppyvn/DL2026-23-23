@@ -16,6 +16,7 @@ The fault: the logits of a pretrained CIFAR-10 ResNet-18 are divided by a temper
 | `inference/` | recomputes the logits from the pretrained checkpoint on the test set | `extract_logits.py` |
 | `demo/` | one test image (or your own image) at T = 0.5, 1, 2 | `demo.py` |
 | `src/part2/` | shared code: settings, metrics, figures | `config.py`, `metrics.py`, `plots.py` |
+| `tests/` | metric checks on synthetic data with known answers | `test_metrics.py` |
 | `results/` | figures and tables produced by the evaluation | — |
 
 ## Installation
@@ -35,6 +36,7 @@ pip install -r requirements.txt
 Run from the repository root:
 
 ```bash
+python tests/test_metrics.py                 # metric code behaves as expected
 python data_preparation/prepare_data.py      # -> data/processed/
 python evaluation/run_experiment.py          # -> results/figures/, results/tables/
 ```
